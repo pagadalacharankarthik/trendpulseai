@@ -4,26 +4,36 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { TrendingUp, ArrowLeft } from "lucide-react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { useState } from "react"
+import { useAuth } from "@/hooks/useAuth"
+import { toast } from "sonner"
 
 export default function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const { signIn } = useAuth()
+  const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     
-    // Note: This will be connected to Supabase Auth once integration is set up
-    console.log("Login attempt:", { email, password })
-    
-    // Simulate loading
-    setTimeout(() => {
+    try {
+      const { error } = await signIn(email, password)
+      
+      if (error) {
+        toast.error(error.message)
+      } else {
+        toast.success("Signed in successfully!")
+        navigate('/dashboard')
+      }
+    } catch (error) {
+      toast.error("An unexpected error occurred")
+    } finally {
       setIsLoading(false)
-      // This would redirect to dashboard after successful auth
-    }, 2000)
+    }
   }
 
   return (
@@ -167,15 +177,6 @@ export default function Login() {
             </CardContent>
           </Card>
 
-          {/* Note about Supabase */}
-          <Card className="border border-warning/20 bg-warning/5">
-            <CardContent className="pt-6">
-              <p className="text-sm text-center text-muted-foreground">
-                <strong>Note:</strong> To enable authentication, connect this project to Supabase 
-                by clicking the green Supabase button in the top right.
-              </p>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>

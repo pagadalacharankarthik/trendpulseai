@@ -20,9 +20,29 @@ import {
   ExternalLink,
   Zap
 } from "lucide-react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
+import { useAuth } from "@/hooks/useAuth"
+import { useEffect } from "react"
 
 export default function Dashboard() {
+  const { user, loading, signOut } = useAuth()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/login')
+    }
+  }, [user, loading, navigate])
+
+  if (loading) {
+    return <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+    </div>
+  }
+
+  if (!user) {
+    return null
+  }
   const [isGenerating, setIsGenerating] = useState(false)
   const [lastUpdate, setLastUpdate] = useState(new Date())
 
@@ -144,7 +164,7 @@ export default function Dashboard() {
                 <Settings className="h-5 w-5" />
               </Button>
               <ThemeToggle />
-              <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" className="text-muted-foreground hover:text-foreground" onClick={signOut}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>

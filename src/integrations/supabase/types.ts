@@ -14,7 +14,117 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ai_reports: {
+        Row: {
+          actionable_suggestions: string[] | null
+          competitor_insights: string[] | null
+          created_at: string
+          id: string
+          report_data: Json | null
+          status: string
+          summary: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actionable_suggestions?: string[] | null
+          competitor_insights?: string[] | null
+          created_at?: string
+          id?: string
+          report_data?: Json | null
+          status?: string
+          summary?: string | null
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actionable_suggestions?: string[] | null
+          competitor_insights?: string[] | null
+          created_at?: string
+          id?: string
+          report_data?: Json | null
+          status?: string
+          summary?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      influencer_posts: {
+        Row: {
+          content: string | null
+          created_at: string
+          engagement_rate: number | null
+          id: string
+          influencer_name: string
+          platform: string
+          post_url: string | null
+          posted_at: string | null
+          reach: number | null
+          user_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          engagement_rate?: number | null
+          id?: string
+          influencer_name: string
+          platform: string
+          post_url?: string | null
+          posted_at?: string | null
+          reach?: number | null
+          user_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          engagement_rate?: number | null
+          id?: string
+          influencer_name?: string
+          platform?: string
+          post_url?: string | null
+          posted_at?: string | null
+          reach?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          brand_description: string | null
+          brand_industry: string | null
+          company_name: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          website_url: string | null
+        }
+        Insert: {
+          brand_description?: string | null
+          brand_industry?: string | null
+          company_name?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          website_url?: string | null
+        }
+        Update: {
+          brand_description?: string | null
+          brand_industry?: string | null
+          company_name?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          website_url?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
