@@ -83,17 +83,58 @@ export default function Dashboard() {
   const handleGenerateReport = async () => {
     setIsGenerating(true)
     try {
+      // First, fetch user's company details from profile
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user?.id)
+        .single()
+      
+      if (profileError) throw profileError
+      
+      // Prepare company data for n8n webhook
+      const companyData = {
+        user_id: user?.id,
+        company_name: profileData?.company_name || '',
+        brand_industry: profileData?.brand_industry || '',
+        brand_description: profileData?.brand_description || '',
+        website_url: profileData?.website_url || '',
+        timestamp: new Date().toISOString(),
+        request_type: 'generate_report'
+      }
+      
+      // Call n8n webhook to fetch company details and generate insights
+      const webhookUrl = 'https://charan121234.app.n8n.cloud/webhook-test/99c4cd99-98ec-41d6-8845-41d288c86771'
+      
+      try {
+        const webhookResponse = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          mode: 'no-cors',
+          body: JSON.stringify(companyData)
+        })
+        
+        console.log('Webhook called successfully with company data:', companyData)
+        toast.success('Company data sent to analysis engine!')
+      } catch (webhookError) {
+        console.warn('Webhook call failed, continuing with local data:', webhookError)
+        toast.warning('External analysis unavailable, using local data')
+      }
+      
       // Create a new AI report
       const { data, error } = await supabase
         .from('ai_reports')
         .insert({
           user_id: user?.id,
-          title: 'AI Trend Analysis',
+          title: `AI Trend Analysis - ${profileData?.company_name || 'Company'}`,
           status: 'processing',
           report_data: {
             trends: [],
             insights: [],
-            competitors: []
+            competitors: [],
+            company_info: companyData
           }
         })
         .select()
@@ -101,23 +142,31 @@ export default function Dashboard() {
       
       if (error) throw error
       
-      // Simulate processing time
+      // Simulate processing time with enhanced data
       setTimeout(async () => {
-        // Update report with completed status
+        // Update report with completed status and company-specific insights
         const { error: updateError } = await supabase
           .from('ai_reports')
           .update({
             status: 'completed',
-            summary: 'AI-generated trend analysis completed successfully',
-            actionable_suggestions: ['Partner with eco-conscious influencers', 'Focus on 7-9 PM engagement window'],
-            competitor_insights: ['Competitors investing in micro-influencer campaigns', 'Sustainable fashion trending']
+            summary: `AI-generated trend analysis for ${profileData?.company_name || 'your company'} completed successfully`,
+            actionable_suggestions: [
+              `Partner with ${profileData?.brand_industry || 'industry'}-specific influencers`,
+              'Focus on 7-9 PM engagement window for maximum reach',
+              'Leverage trending hashtags in your industry'
+            ],
+            competitor_insights: [
+              `Competitors in ${profileData?.brand_industry || 'your industry'} are investing in micro-influencer campaigns`,
+              'Sustainable practices are trending across all industries',
+              'AI-powered content creation tools showing high engagement'
+            ]
           })
           .eq('id', data.id)
         
         if (!updateError) {
           fetchData()
           setLastUpdate(new Date())
-          toast.success('Report generated successfully!')
+          toast.success('Company-specific report generated successfully!')
         }
         setIsGenerating(false)
       }, 3000)

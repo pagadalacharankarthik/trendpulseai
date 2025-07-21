@@ -53,6 +53,48 @@ export type Database = {
         }
         Relationships: []
       }
+      competitors: {
+        Row: {
+          company_name: string
+          created_at: string
+          description: string | null
+          id: string
+          industry: string | null
+          key_metrics: Json | null
+          market_position: string | null
+          social_platforms: Json | null
+          updated_at: string
+          user_id: string
+          website_url: string | null
+        }
+        Insert: {
+          company_name: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          industry?: string | null
+          key_metrics?: Json | null
+          market_position?: string | null
+          social_platforms?: Json | null
+          updated_at?: string
+          user_id: string
+          website_url?: string | null
+        }
+        Update: {
+          company_name?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          industry?: string | null
+          key_metrics?: Json | null
+          market_position?: string | null
+          social_platforms?: Json | null
+          updated_at?: string
+          user_id?: string
+          website_url?: string | null
+        }
+        Relationships: []
+      }
       influencer_posts: {
         Row: {
           content: string | null
