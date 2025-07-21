@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -22,11 +22,17 @@ import {
 } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
-import { useEffect } from "react"
+import { supabase } from "@/integrations/supabase/client"
+import { toast } from "sonner"
 
 export default function Dashboard() {
   const { user, loading, signOut } = useAuth()
   const navigate = useNavigate()
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [lastUpdate, setLastUpdate] = useState(new Date())
+  const [reports, setReports] = useState<any[]>([])
+  const [influencerPosts, setInfluencerPosts] = useState<any[]>([])
+  const [loadingData, setLoadingData] = useState(true)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -34,7 +40,142 @@ export default function Dashboard() {
     }
   }, [user, loading, navigate])
 
-  if (loading) {
+  useEffect(() => {
+    if (user) {
+      fetchData()
+    }
+  }, [user])
+
+  const fetchData = async () => {
+    try {
+      setLoadingData(true)
+      
+      // Fetch AI reports
+      const { data: reportsData, error: reportsError } = await supabase
+        .from('ai_reports')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(5)
+      
+      if (reportsError) throw reportsError
+      
+      // Fetch influencer posts
+      const { data: postsData, error: postsError } = await supabase
+        .from('influencer_posts')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(4)
+      
+      if (postsError) throw postsError
+      
+      setReports(reportsData || [])
+      setInfluencerPosts(postsData || [])
+    } catch (error) {
+      console.error('Error fetching data:', error)
+      toast.error('Failed to load dashboard data')
+    } finally {
+      setLoadingData(false)
+    }
+  }
+
+  const handleGenerateReport = async () => {
+    setIsGenerating(true)
+    try {
+      // Create a new AI report
+      const { data, error } = await supabase
+        .from('ai_reports')
+        .insert({
+          user_id: user?.id,
+          title: 'AI Trend Analysis',
+          status: 'processing',
+          report_data: {
+            trends: [],
+            insights: [],
+            competitors: []
+          }
+        })
+        .select()
+        .single()
+      
+      if (error) throw error
+      
+      // Simulate processing time
+      setTimeout(async () => {
+        // Update report with completed status
+        const { error: updateError } = await supabase
+          .from('ai_reports')
+          .update({
+            status: 'completed',
+            summary: 'AI-generated trend analysis completed successfully',
+            actionable_suggestions: ['Partner with eco-conscious influencers', 'Focus on 7-9 PM engagement window'],
+            competitor_insights: ['Competitors investing in micro-influencer campaigns', 'Sustainable fashion trending']
+          })
+          .eq('id', data.id)
+        
+        if (!updateError) {
+          fetchData()
+          setLastUpdate(new Date())
+          toast.success('Report generated successfully!')
+        }
+        setIsGenerating(false)
+      }, 3000)
+    } catch (error) {
+      console.error('Error generating report:', error)
+      toast.error('Failed to generate report')
+      setIsGenerating(false)
+    }
+  }
+
+  const handleExportReport = async (reportId?: string) => {
+    try {
+      let query = supabase.from('ai_reports').select('*').eq('user_id', user?.id)
+      
+      if (reportId) {
+        query = query.eq('id', reportId)
+      }
+      
+      const { data, error } = await query
+      if (error) throw error
+      
+      // Convert to CSV
+      const csvContent = data.map(report => ({
+        'Report ID': report.id,
+        'Title': report.title,
+        'Status': report.status,
+        'Summary': report.summary || '',
+        'Created': new Date(report.created_at).toLocaleDateString(),
+        'Suggestions': report.actionable_suggestions?.join('; ') || '',
+        'Insights': report.competitor_insights?.join('; ') || ''
+      }))
+      
+      const csv = [
+        Object.keys(csvContent[0]).join(','),
+        ...csvContent.map(row => Object.values(row).map(val => `"${val}"`).join(','))
+      ].join('\n')
+      
+      const blob = new Blob([csv], { type: 'text/csv' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `trendpulse-report-${new Date().toISOString().split('T')[0]}.csv`
+      a.click()
+      window.URL.revokeObjectURL(url)
+      
+      toast.success('Report exported successfully!')
+    } catch (error) {
+      console.error('Error exporting report:', error)
+      toast.error('Failed to export report')
+    }
+  }
+
+  const handleViewAllPosts = () => {
+    // Navigate to a detailed posts view (could be implemented later)
+    toast.info('Detailed posts view coming soon!')
+  }
+
+  if (loading || loadingData) {
     return <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
     </div>
@@ -43,102 +184,61 @@ export default function Dashboard() {
   if (!user) {
     return null
   }
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [lastUpdate, setLastUpdate] = useState(new Date())
 
-  const handleGenerateReport = () => {
-    setIsGenerating(true)
-    // Simulate API call to n8n webhook
-    setTimeout(() => {
-      setIsGenerating(false)
-      setLastUpdate(new Date())
-    }, 3000)
-  }
-
-  const mockInfluencerPosts = [
+  // Use mock data if no real data available
+  const displayInfluencerPosts = influencerPosts.length > 0 ? influencerPosts : [
     {
-      id: 1,
-      influencer: "@fashionista_emma",
+      id: 'mock1',
+      influencer_name: "@fashionista_emma",
       platform: "Instagram",
       content: "Summer trends are shifting towards sustainable fashion...",
-      engagement: "45.2K",
-      sentiment: "Positive",
-      trend_score: 92,
-      posted_at: "2 hours ago"
+      engagement_rate: 0.452,
+      reach: 45200,
+      posted_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
     },
     {
-      id: 2,
-      influencer: "@tech_reviewer_max",
+      id: 'mock2',
+      influencer_name: "@tech_reviewer_max",
       platform: "TikTok", 
       content: "AI tools are becoming the new must-have for creators...",
-      engagement: "128.7K",
-      sentiment: "Very Positive",
-      trend_score: 88,
-      posted_at: "4 hours ago"
-    },
-    {
-      id: 3,
-      influencer: "@wellness_guru_sara",
-      platform: "YouTube",
-      content: "Mental health apps are seeing unprecedented growth...",
-      engagement: "89.1K",
-      sentiment: "Positive",
-      trend_score: 85,
-      posted_at: "6 hours ago"
-    },
-    {
-      id: 4,
-      influencer: "@foodie_adventures",
-      platform: "Instagram",
-      content: "Plant-based alternatives are dominating food trends...",
-      engagement: "67.3K",
-      sentiment: "Neutral",
-      trend_score: 79,
-      posted_at: "8 hours ago"
+      engagement_rate: 0.635,
+      reach: 128700,
+      posted_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
     }
   ]
 
-  const mockReportHistory = [
+  const displayReports = reports.length > 0 ? reports : [
     {
-      id: 1,
-      date: "2024-01-15",
-      type: "Weekly Trend Report",
-      status: "Completed",
-      insights: 127,
-      trends: 23
+      id: 'mock1',
+      title: "Weekly Trend Report",
+      status: "completed",
+      created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      summary: "AI-generated weekly analysis"
     },
     {
-      id: 2,
-      date: "2024-01-08", 
-      type: "Competitor Analysis",
-      status: "Completed",
-      insights: 89,
-      trends: 18
-    },
-    {
-      id: 3,
-      date: "2024-01-01",
-      type: "Influencer Report",
-      status: "Completed", 
-      insights: 156,
-      trends: 31
+      id: 'mock2',
+      title: "Competitor Analysis",
+      status: "completed",
+      created_at: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+      summary: "Competitive landscape insights"
     }
   ]
 
-  const getSentimentColor = (sentiment: string) => {
-    switch (sentiment) {
-      case "Very Positive": return "bg-success/10 text-success border-success/20"
-      case "Positive": return "bg-success/10 text-success border-success/20"
-      case "Neutral": return "bg-warning/10 text-warning border-warning/20"
-      case "Negative": return "bg-destructive/10 text-destructive border-destructive/20"
-      default: return "bg-muted text-muted-foreground"
-    }
+  const getSentimentColor = (engagementRate: number) => {
+    if (engagementRate >= 0.5) return "bg-success/10 text-success border-success/20"
+    if (engagementRate >= 0.3) return "bg-warning/10 text-warning border-warning/20"
+    return "bg-muted/10 text-muted-foreground border-muted/20"
   }
 
-  const getTrendScoreColor = (score: number) => {
-    if (score >= 90) return "text-success"
-    if (score >= 80) return "text-warning"
-    return "text-muted-foreground"
+  const getSentimentLabel = (engagementRate: number) => {
+    if (engagementRate >= 0.5) return "High"
+    if (engagementRate >= 0.3) return "Medium"
+    return "Low"
+  }
+
+  const formatEngagement = (rate: number, reach: number) => {
+    if (reach) return `${(reach / 1000).toFixed(1)}K`
+    return `${(rate * 100).toFixed(1)}%`
   }
 
   return (
@@ -282,7 +382,7 @@ export default function Dashboard() {
                     <span className="text-sm">Next refresh in 6 hours</span>
                   </div>
                 </div>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => handleExportReport()}>
                   <Download className="h-4 w-4 mr-2" />
                   Export
                 </Button>
@@ -320,7 +420,7 @@ export default function Dashboard() {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle className="text-xl">Latest Influencer Posts</CardTitle>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={handleViewAllPosts}>
                   <Eye className="h-4 w-4 mr-2" />
                   View All
                 </Button>
@@ -342,25 +442,29 @@ export default function Dashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mockInfluencerPosts.map((post) => (
+                    {displayInfluencerPosts.map((post) => (
                       <TableRow key={post.id}>
-                        <TableCell className="font-medium">{post.influencer}</TableCell>
+                        <TableCell className="font-medium">{post.influencer_name}</TableCell>
                         <TableCell>
                           <Badge variant="outline">{post.platform}</Badge>
                         </TableCell>
                         <TableCell className="max-w-xs truncate">{post.content}</TableCell>
-                        <TableCell className="font-medium">{post.engagement}</TableCell>
+                        <TableCell className="font-medium">
+                          {formatEngagement(post.engagement_rate || 0, post.reach || 0)}
+                        </TableCell>
                         <TableCell>
-                          <Badge className={getSentimentColor(post.sentiment)}>
-                            {post.sentiment}
+                          <Badge className={getSentimentColor(post.engagement_rate || 0)}>
+                            {getSentimentLabel(post.engagement_rate || 0)}
                           </Badge>
                         </TableCell>
-                        <TableCell className={`font-bold ${getTrendScoreColor(post.trend_score)}`}>
-                          {post.trend_score}
+                        <TableCell className="font-bold text-primary">
+                          {post.engagement_rate ? `${(post.engagement_rate * 100).toFixed(1)}%` : 'N/A'}
                         </TableCell>
-                        <TableCell className="text-muted-foreground">{post.posted_at}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {post.posted_at ? new Date(post.posted_at).toLocaleDateString() : 'N/A'}
+                        </TableCell>
                         <TableCell>
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" onClick={() => post.post_url && window.open(post.post_url, '_blank')}>
                             <ExternalLink className="h-4 w-4" />
                           </Button>
                         </TableCell>
@@ -382,28 +486,28 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {mockReportHistory.map((report) => (
+                {displayReports.map((report) => (
                   <div key={report.id} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center space-x-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{report.date}</span>
+                        <span className="font-medium">{new Date(report.created_at).toLocaleDateString()}</span>
                       </div>
                       <div className="space-y-1">
-                        <div className="font-medium">{report.type}</div>
+                        <div className="font-medium">{report.title}</div>
                         <div className="text-sm text-muted-foreground">
-                          {report.insights} insights • {report.trends} trends identified
+                          {report.summary || 'AI-generated trend analysis'}
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <Badge variant="outline" className="text-success border-success/20">
+                      <Badge variant="outline" className="text-success border-success/20 capitalize">
                         {report.status}
                       </Badge>
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" onClick={() => toast.info('Detailed view coming soon!')}>
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" onClick={() => handleExportReport(report.id)}>
                         <Download className="h-4 w-4" />
                       </Button>
                     </div>
