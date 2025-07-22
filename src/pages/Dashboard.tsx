@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { ProfileSetup } from "@/components/ProfileSetup"
 import { 
   TrendingUp, 
   RefreshCw, 
@@ -33,6 +34,8 @@ export default function Dashboard() {
   const [reports, setReports] = useState<any[]>([])
   const [influencerPosts, setInfluencerPosts] = useState<any[]>([])
   const [loadingData, setLoadingData] = useState(true)
+  const [showProfileSetup, setShowProfileSetup] = useState(false)
+  const [userProfile, setUserProfile] = useState<any>(null)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -49,6 +52,22 @@ export default function Dashboard() {
   const fetchData = async () => {
     try {
       setLoadingData(true)
+      
+      // First, fetch user profile to check if it's complete
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user?.id)
+        .single()
+      
+      if (!profileError && profileData) {
+        setUserProfile(profileData)
+        // Check if profile is complete (has required fields)
+        const isProfileComplete = profileData.company_name && profileData.brand_industry
+        setShowProfileSetup(!isProfileComplete)
+      } else {
+        setShowProfileSetup(true)
+      }
       
       // Fetch AI reports
       const { data: reportsData, error: reportsError } = await supabase
@@ -231,6 +250,25 @@ export default function Dashboard() {
 
   if (!user) {
     return null
+  }
+
+  // Show profile setup if profile is incomplete
+  if (showProfileSetup) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto p-6">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <ProfileSetup 
+              existingProfile={userProfile}
+              onComplete={() => {
+                setShowProfileSetup(false)
+                fetchData()
+              }} 
+            />
+          </div>
+        </div>
+      </div>
+    )
   }
 
   // Use mock data if no real data available
