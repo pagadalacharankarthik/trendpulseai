@@ -92,7 +92,7 @@ export default function Dashboard() {
       
       if (profileError) throw profileError
       
-      // Prepare company data for n8n webhook
+      // Prepare company data for n8n webhook and edge function
       const companyData = {
         user_id: user?.id,
         company_name: profileData?.company_name || '',
@@ -103,8 +103,9 @@ export default function Dashboard() {
         request_type: 'generate_report'
       }
       
-      // Call n8n webhook to fetch company details and generate insights
+      // Call n8n webhook first
       const webhookUrl = 'https://charan121234.app.n8n.cloud/webhook-test/99c4cd99-98ec-41d6-8845-41d288c86771'
+      let n8nData = null
       
       try {
         const webhookResponse = await fetch(webhookUrl, {
@@ -112,67 +113,66 @@ export default function Dashboard() {
           headers: {
             'Content-Type': 'application/json',
           },
-          mode: 'no-cors',
           body: JSON.stringify(companyData)
         })
+        
+        if (webhookResponse.ok) {
+          n8nData = await webhookResponse.json()
+          console.log('N8N webhook response:', n8nData)
+        }
         
         console.log('Webhook called successfully with company data:', companyData)
         toast.success('Company data sent to analysis engine!')
       } catch (webhookError) {
-        console.warn('Webhook call failed, continuing with local data:', webhookError)
-        toast.warning('External analysis unavailable, using local data')
+        console.warn('Webhook call failed, continuing with local processing:', webhookError)
+        toast.warning('External analysis unavailable, using local processing')
       }
       
-      // Create a new AI report
-      const { data, error } = await supabase
+      // Process data through our edge function
+      const { data: processedData, error: edgeError } = await supabase.functions.invoke('process-company-data', {
+        body: {
+          ...companyData,
+          n8n_data: n8nData
+        }
+      })
+      
+      if (edgeError) {
+        console.error('Edge function error:', edgeError)
+        throw new Error('Failed to process company data')
+      }
+      
+      // Create a new AI report with processed data
+      const { data: reportData, error: insertError } = await supabase
         .from('ai_reports')
         .insert({
           user_id: user?.id,
           title: `AI Trend Analysis - ${profileData?.company_name || 'Company'}`,
-          status: 'processing',
+          status: 'completed',
+          summary: `Comprehensive trend analysis for ${profileData?.company_name || 'your company'} completed with ${processedData.data.competitors.length} competitors analyzed and ${processedData.data.trends.length} key trends identified`,
           report_data: {
-            trends: [],
-            insights: [],
-            competitors: [],
-            company_info: companyData
-          }
+            trends: processedData.data.trends,
+            insights: processedData.data.insights,
+            competitors: processedData.data.competitors,
+            company_info: companyData,
+            processed_at: new Date().toISOString()
+          },
+          actionable_suggestions: processedData.data.recommendations,
+          competitor_insights: processedData.data.insights
         })
         .select()
         .single()
       
-      if (error) throw error
+      if (insertError) throw insertError
       
-      // Simulate processing time with enhanced data
-      setTimeout(async () => {
-        // Update report with completed status and company-specific insights
-        const { error: updateError } = await supabase
-          .from('ai_reports')
-          .update({
-            status: 'completed',
-            summary: `AI-generated trend analysis for ${profileData?.company_name || 'your company'} completed successfully`,
-            actionable_suggestions: [
-              `Partner with ${profileData?.brand_industry || 'industry'}-specific influencers`,
-              'Focus on 7-9 PM engagement window for maximum reach',
-              'Leverage trending hashtags in your industry'
-            ],
-            competitor_insights: [
-              `Competitors in ${profileData?.brand_industry || 'your industry'} are investing in micro-influencer campaigns`,
-              'Sustainable practices are trending across all industries',
-              'AI-powered content creation tools showing high engagement'
-            ]
-          })
-          .eq('id', data.id)
-        
-        if (!updateError) {
-          fetchData()
-          setLastUpdate(new Date())
-          toast.success('Company-specific report generated successfully!')
-        }
-        setIsGenerating(false)
-      }, 3000)
+      // Refresh data and update UI
+      await fetchData()
+      setLastUpdate(new Date())
+      toast.success('Comprehensive report generated with live data!')
+      
     } catch (error) {
       console.error('Error generating report:', error)
       toast.error('Failed to generate report')
+    } finally {
       setIsGenerating(false)
     }
   }
@@ -220,8 +220,7 @@ export default function Dashboard() {
   }
 
   const handleViewAllPosts = () => {
-    // Navigate to a detailed posts view (could be implemented later)
-    toast.info('Detailed posts view coming soon!')
+    navigate('/reports')
   }
 
   if (loading || loadingData) {

@@ -172,7 +172,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      process_n8n_webhook_data: {
+        Args: { company_data: Json }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
