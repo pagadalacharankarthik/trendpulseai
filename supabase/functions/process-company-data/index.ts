@@ -7,6 +7,103 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+function getRelevantCompetitors(companyName: string, industry: string) {
+  const normalizedCompany = companyName?.toLowerCase() || '';
+  const normalizedIndustry = industry?.toLowerCase() || '';
+  
+  // Define competitor mappings based on brands and industries
+  const competitorMappings = {
+    // Sports/Athletic brands
+    nike: ['Adidas', 'Puma', 'Under Armour', 'New Balance', 'Reebok'],
+    adidas: ['Nike', 'Puma', 'Under Armour', 'New Balance', 'Reebok'],
+    puma: ['Nike', 'Adidas', 'Under Armour', 'New Balance', 'Reebok'],
+    
+    // Fashion/Apparel brands
+    'us polo': ['Ralph Lauren', 'Tommy Hilfiger', 'Lacoste', 'Burberry'],
+    'polo ralph lauren': ['US Polo Assn', 'Tommy Hilfiger', 'Lacoste', 'Burberry'],
+    'tommy hilfiger': ['Ralph Lauren', 'US Polo Assn', 'Lacoste', 'Calvin Klein'],
+    zara: ['H&M', 'Uniqlo', 'Forever 21', 'Mango'],
+    'h&m': ['Zara', 'Uniqlo', 'Forever 21', 'Mango'],
+    
+    // Indian fashion brands
+    'rare rabbit': ['Snitch', 'The Souled Store', 'Bewakoof', 'Campus Sutra'],
+    snitch: ['Rare Rabbit', 'The Souled Store', 'Bewakoof', 'Campus Sutra'],
+    bewakoof: ['Snitch', 'Rare Rabbit', 'The Souled Store', 'Campus Sutra'],
+    
+    // Tech companies
+    apple: ['Samsung', 'Google', 'Microsoft', 'Amazon'],
+    google: ['Apple', 'Microsoft', 'Amazon', 'Meta'],
+    microsoft: ['Apple', 'Google', 'Amazon', 'Oracle'],
+    
+    // Fast food
+    mcdonald: ['Burger King', 'KFC', 'Subway', 'Pizza Hut'],
+    'burger king': ['McDonald\'s', 'KFC', 'Subway', 'Pizza Hut'],
+    kfc: ['McDonald\'s', 'Burger King', 'Subway', 'Pizza Hut'],
+  };
+  
+  // Industry-based competitors
+  const industryCompetitors = {
+    fashion: ['Zara', 'H&M', 'Uniqlo', 'Forever 21'],
+    apparel: ['Zara', 'H&M', 'Uniqlo', 'Forever 21'],
+    clothing: ['Zara', 'H&M', 'Uniqlo', 'Forever 21'],
+    sportswear: ['Nike', 'Adidas', 'Puma', 'Under Armour'],
+    technology: ['Apple', 'Google', 'Microsoft', 'Amazon'],
+    tech: ['Apple', 'Google', 'Microsoft', 'Amazon'],
+    food: ['McDonald\'s', 'Burger King', 'KFC', 'Subway'],
+    retail: ['Amazon', 'Walmart', 'Target', 'Best Buy'],
+    automotive: ['Toyota', 'Ford', 'BMW', 'Mercedes-Benz'],
+  };
+  
+  // Try to find specific brand competitors first
+  let competitors = [];
+  for (const [brand, comps] of Object.entries(competitorMappings)) {
+    if (normalizedCompany.includes(brand)) {
+      competitors = comps;
+      break;
+    }
+  }
+  
+  // Fall back to industry-based competitors
+  if (competitors.length === 0) {
+    for (const [ind, comps] of Object.entries(industryCompetitors)) {
+      if (normalizedIndustry.includes(ind)) {
+        competitors = comps;
+        break;
+      }
+    }
+  }
+  
+  // Default competitors if nothing matches
+  if (competitors.length === 0) {
+    competitors = ['Market Leader A', 'Market Leader B', 'Emerging Competitor', 'Digital Disruptor'];
+  }
+  
+  // Generate competitor objects with realistic data
+  return competitors.slice(0, 4).map((name, index) => ({
+    company_name: name,
+    market_share: Math.random() * 0.3 + 0.05, // 5% to 35%
+    strategy: [
+      'Heavy social media investment',
+      'Micro-influencer partnerships', 
+      'Celebrity endorsements',
+      'Content marketing focus',
+      'E-commerce optimization'
+    ][index % 5],
+    strengths: [
+      ['Brand recognition', 'Large budget', 'Wide reach'],
+      ['Authentic content', 'High engagement', 'Niche targeting'],
+      ['Innovation focus', 'Tech integration', 'User experience'],
+      ['Price competitive', 'Fast delivery', 'Customer service']
+    ][index % 4],
+    weaknesses: [
+      ['Less authentic engagement', 'Generic content'],
+      ['Limited reach', 'Budget constraints'], 
+      ['High costs', 'Complex messaging'],
+      ['Quality concerns', 'Brand perception']
+    ][index % 4]
+  }));
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -46,22 +143,7 @@ serve(async (req) => {
           industry_specific: false
         }
       ],
-      competitors: [
-        {
-          company_name: `${brand_industry} Market Leader`,
-          market_share: 0.23,
-          strategy: 'Heavy social media investment',
-          strengths: ['Brand recognition', 'Large budget', 'Wide reach'],
-          weaknesses: ['Less authentic engagement', 'Generic content']
-        },
-        {
-          company_name: 'Emerging Digital Competitor',
-          market_share: 0.12,
-          strategy: 'Micro-influencer partnerships',
-          strengths: ['Authentic content', 'High engagement rates', 'Niche targeting'],
-          weaknesses: ['Limited reach', 'Budget constraints']
-        }
-      ],
+      competitors: getRelevantCompetitors(company_name, brand_industry),
       insights: [
         `Companies in ${brand_industry || 'your industry'} are seeing 40% higher engagement with authentic storytelling`,
         'Peak engagement times are 7-9 PM EST across all platforms',
