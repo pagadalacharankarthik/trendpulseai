@@ -28,21 +28,30 @@ export const ProfileSetup = ({ onComplete, existingProfile }: ProfileSetupProps)
     setLoading(true);
     
     try {
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
       const { error } = await supabase
         .from('profiles')
         .upsert({
-          user_id: user?.id,
+          user_id: user.id,
           ...formData,
           updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id'
         });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
       
       toast.success('Profile updated successfully!');
       onComplete();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
+      toast.error(`Failed to update profile: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
