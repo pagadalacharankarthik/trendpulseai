@@ -5,6 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { ProfileSetup } from "@/components/ProfileSetup"
+import { SummariesDashboard } from "@/components/SummariesDashboard"
+import { N8NSummarizeTester } from "@/components/N8NSummarizeTester"
 import { 
   TrendingUp, 
   RefreshCw, 
@@ -561,6 +563,12 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
+
+          {/* N8N Text Summarization Testing */}
+          <N8NSummarizeTester />
+
+          {/* N8N Text Summaries Section */}
+          <SummariesDashboard />
 
           {/* Report History */}
           <Card className="bg-gradient-card border-0">
